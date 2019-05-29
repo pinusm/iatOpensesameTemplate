@@ -1,4 +1,4 @@
-#Michael Pinus (May-June, 2016) 
+#Michael Pinus, pinusm@post.bgu.ac.il
 #D score calculations done by the IAT packeage (Dan Martin), based on Greenwald, Banaji & Nosek (2003).
 #Here D2 is used (can be altered below in the cleanIAT calls, see ?cleanIAT for details).
 #Internal consistency was calculated as per Bar-Anan and Nosek (2014) suggested procedure.
