@@ -6,26 +6,18 @@
 #Positive iatD values indicate faster RTs when cat1/att1 and cat2/att2 shared the response keys.
 #Negative iatD values indicate faster RTs when cat2/att1 and cat1/att2 shared the response keys.
 #thus, a positive iatD score indicates a stronger association of cat1 with att1, over att2,
-#or/and 
+#or/and
 #a stronger association of cat2 with att2, over att1.
 
 #Output is the data-frame iatD, which is a row-per-participat table where D scores are coupled with subject numbers.
 #Optionally, creates a CSV file named 'iatD.csv'.
 
-#requires several packages. If errors occur, uncomment and run these next lines once.
-# (running it multiple times won't do any harm, but will be redundant)
-# install.packages("Hmisc")
-# install.packages("plyr")
-# install.packages("dplyr")
-# install.packages("psych")
-# install.packages("reshape2")
-# install.packages("IAT")
-
-
 ####################### EDIT THIS ##############################################
-#insert here the path to the raw files. make sure not to use Hebrew (or any 
+
+
+#insert here the path to the raw files. make sure not to use Hebrew (or any
 #non-English) characters in your path, to use double slashes, and a valid
-#Windows path (if you're on Linux, you probably know how to tweak to code 
+#Windows path (if you're on Linux, you probably know how to tweak to code
 #accordingly)
 #takes a double-quoted string, such as:
 #rawPath = "C:\\my_iat\\RawData\\"
@@ -48,12 +40,15 @@ csvPath = "C:\\Users\\micha\\Downloads\\"
 overwriteCSV = "yes"
 ####################### DO NOT EDIT BELOW THIS LINE ############################
 #################### UNLESS YOU KNOW WHAT YOU'RE DOING #########################
-# load packages #################################################
-library("Hmisc")
-library("plyr")
-library("dplyr")
-library("psych")
-library("IAT")
+
+# We require several packages. This will make sure they're installed before we proceed.
+# running this if the packages are already installed won't do anything (i.e., it won't do any harm, and it won't look for updates).
+
+if (!require("Hmisc")) install.packages("Hmisc")
+if (!require("tidyverse")) install.packages("tidyverse")
+if (!require("psych")) install.packages("psych")
+if (!require("IAT")) install.packages("IAT")
+
 # Import OpenSesame data ####
 old.dir <- getwd()
 setwd(gsub("\\\\", "/", rawPath))
@@ -72,7 +67,7 @@ length(unique(RawOpenSesame$subject_nr))
 keepVars <- c("blocknumber", "subject_nr", "correct_first_chance_response", "response_time_first_chance_response", "response_time_second_chance_response", "first_loc")
 cleanOpenSesame <- RawOpenSesame[ , names(RawOpenSesame) %in% keepVars]
 ## get ready for IATD. this is a multistep process.. ####
-### create the err variable 
+### create the err variable
 errors <- cleanOpenSesame
 errors[!is.na(errors$correct_first_chance_response) & errors$correct_first_chance_response == 0, "err"] = 1
 errors[!is.na(errors$correct_first_chance_response) & errors$correct_first_chance_response == 1, "err"] = 0
@@ -115,7 +110,7 @@ iat$modulo <- modulo%%3   ### nth cycle, here every 3
 #in the next one modulo 0 has more trials than modulo 1,2. this is because the total trail number (120) is nicely divided (modulo = 0) of 3.
 #ddply(iat,.(modulo, subject_nr,block_number), dplyr::summarise, count = length(block_number))
 
-iatmod0 <- iat[iat$modulo==0 , ]  
+iatmod0 <- iat[iat$modulo==0 , ]
 iatmod1 <- iat[iat$modulo==1 , ]
 iatmod2 <- iat[iat$modulo==2 , ]
 ## compute IATD scores ####
@@ -155,7 +150,7 @@ if (outputCSV == "yes") {
         setwd(gsub("\\\\", "/", rawPath))
         t2 <- try(setwd('..')) #try to setWD to parent folder.
         if("try-error" %in% class(t2)) setwd(old.dir)   #if this err'd, WD will be restored.
-    } 
+    }
     if (overwriteCSV == "yes") {
         if (file.exists("iatD.csv")) {
             file.remove("iatD.csv")
