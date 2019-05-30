@@ -85,7 +85,7 @@ RawOpenSesame <- list.files(path = rawPath, pattern = "*.csv",full.names = TRUE)
 length(unique(RawOpenSesame$subject_nr))
 ## keep only needed variables ####
 keepVars <- c("blocknumber", "subject_nr", "correct_first_chance_response", "response_time_first_chance_response", "response_time_second_chance_response", "first_loc")
-cleanOpenSesame <- RawOpenSesame[ , names(RawOpenSesame) %in% keepVars]
+cleanOpenSesame <- RawOpenSesame %>% dplyr::select(dplyr::one_of(keepVars))
 ## get ready for IATD. this is a multistep process.. ####
 ### create the err variable
 errors <- cleanOpenSesame
