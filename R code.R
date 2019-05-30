@@ -97,7 +97,6 @@ errors <- cleanOpenSesame %>% dplyr::mutate(
     )
 )
 
-rm(cleanOpenSesame)
 
 ### compute _full_ trial latency
 latencies <- errors
