@@ -72,6 +72,7 @@ if (interactive_usage == "yes"){
 
 # cleanup the paths, incase the user hardcoded them, with forward slashes
 rawPath <- gsub("\\\\", "/", rawPath)
+csvPath <- gsub("\\\\", "/", csvPath)
 
 # Import OpenSesame data ####
 old.dir <- getwd()
