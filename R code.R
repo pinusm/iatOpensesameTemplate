@@ -14,26 +14,34 @@
 
 ####################### EDIT THIS ##############################################
 
+# Setting 'interactive_usage = "yes"' means you will be prompted to choose the path of the of the raw opensesame csv files,
+# and the path of the output file. Setting 'interactive_usage = "no"' means you will need to hardcode both raw and output paths, below.
+# 'interactive_usage = "yes"' is for inexperienced or casual R users. If you need nothing from R, other than getting the D scores,
+# leave this setting set to "yes". valid values are "yes"/"no".
+interactive_usage = "yes"
 
-#insert here the path to the raw files. make sure not to use Hebrew (or any
-#non-English) characters in your path, to use double slashes, and a valid
-#Windows path (if you're on Linux, you probably know how to tweak to code
-#accordingly)
-#takes a double-quoted string, such as:
-#rawPath = "C:\\my_iat\\RawData\\"
-rawPath = "C:\\Users\\micha\\Downloads\\IAT\\"
-
-#create iat.CSV with the results? valid values are "yes"/"no"
+#create iat.CSV with the results? valid values are "yes"/"no".
 outputCSV = "yes"
 
-#insert here the path to the output CSV file. make sure to
-#use double slashes, and a complete and valid windows path (if you're on linux,
-#you probably know how to tweak to code accordingly).
-#If not defined, the script will try to use the parent folder of the rawPath folder.
-#If the parent folder is write-protected, the working directory (where this script
-#is saved) will be used.
-#takes a double-quoted string, such as:
-#csvPath = "C:\\my_iat\\"
+# The next setting is IGNORED if 'interactive_usage = "yes"'.
+# insert here the path to the raw files. make sure not to use Hebrew (or any
+# non-English) characters in your path, to use double slashes, and a valid
+# Windows path (if you're on Linux, you probably know how to tweak to code
+# accordingly)
+# takes a double-quoted string, such as:
+# rawPath = "C:\\my_iat\\RawData\\"
+rawPath = "C:\\Users\\micha\\Downloads\\IAT\\"
+
+
+# The next setting is IGNORED if 'interactive_usage = "yes"'.
+# insert here the path to the output CSV file. make sure to
+# use double slashes, and a complete and valid windows path (if you're on linux,
+# you probably know how to tweak to code accordingly).
+# If not defined, the script will try to use the parent folder of the rawPath folder.
+# If the parent folder is write-protected, the working directory (where this script
+# is saved) will be used.
+# takes a double-quoted string, such as:
+# csvPath = "C:\\my_iat\\"
 csvPath = "C:\\Users\\micha\\Downloads\\"
 
 #if iat.CSV exists, should it be overwritten (with warning)? valid values are "yes"/"no"
@@ -43,9 +51,21 @@ overwriteCSV = "yes"
 
 # We require several packages. This will make sure they're installed before we proceed.
 # running this if the packages are already installed won't do anything (i.e., it won't do any harm, and it won't look for updates).
+# check if the users want to interactively pick the paths, and let them do so
+if (interactive_usage == "yes"){
+    # make sure Rstudio is running
+    if (!rstudioapi::isAvailable()) {stop("For interactive usage, you must use Rstudio v1.2 or later.")}
+    rstudioapi::showDialog(title = "Raw Files Path", message = "Hello there! On the next popup window, please pick the the path of the raw files created by OpenSesame")
+    rawPath <-  rstudioapi::selectDirectory()
+    rstudioapi::showDialog(title = "Output CSV Path", message = "Now, pick a location and file name for the output CSV file.")
+    csvPath <- rstudioapi::selectFile(caption = "Save File",
+                                         label = "Save",
+                                         existing = FALSE)
+    if (!endsWith(csvPath, ".csv")) {csvPath <- paste0(csvPath, ".csv")}
+}
 
-if (!require("Hmisc")) install.packages("Hmisc")
-if (!require("tidyverse")) install.packages("tidyverse")
+# cleanup the paths, incase the user hardcoded them, with forward slashes
+rawPath <- gsub("\\\\", "/", rawPath)
 if (!require("psych")) install.packages("psych")
 if (!require("IAT")) install.packages("IAT")
 
