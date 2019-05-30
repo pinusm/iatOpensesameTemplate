@@ -86,12 +86,19 @@ length(unique(RawOpenSesame$subject_nr))
 ## keep only needed variables ####
 keepVars <- c("blocknumber", "subject_nr", "correct_first_chance_response", "response_time_first_chance_response", "response_time_second_chance_response", "first_loc")
 cleanOpenSesame <- RawOpenSesame %>% dplyr::select(dplyr::one_of(keepVars))
+
 ## get ready for IATD. this is a multistep process.. ####
 ### create the err variable
-errors <- cleanOpenSesame
-errors[!is.na(errors$correct_first_chance_response) & errors$correct_first_chance_response == 0, "err"] = 1
-errors[!is.na(errors$correct_first_chance_response) & errors$correct_first_chance_response == 1, "err"] = 0
+errors <- cleanOpenSesame %>% dplyr::mutate(
+    err = case_when(
+        correct_first_chance_response == 0 ~ 1,
+        correct_first_chance_response == 1 ~ 0,
+        TRUE ~ NA_real_
+    )
+)
+
 rm(cleanOpenSesame)
+
 ### compute _full_ trial latency
 latencies <- errors
 latencies[latencies$err == 0 , "response_time_second_chance_response"] = 0
