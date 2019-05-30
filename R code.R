@@ -75,16 +75,11 @@ rawPath <- gsub("\\\\", "/", rawPath)
 csvPath <- gsub("\\\\", "/", csvPath)
 
 # Import OpenSesame data ####
-old.dir <- getwd()
-setwd(gsub("\\\\", "/", rawPath))
+
 # save as tbl, following dplyr docs suggestion
-RawOpenSesame <- tbl_df(ldply(list.files(pattern="*.csv"),function(filename) {
-    dum=read.csv(filename,encoding = "UTF-8")
-    dum$filename=filename
-    return(dum)
-}))
-setwd(old.dir)
-rm(old.dir)
+RawOpenSesame <- list.files(path = rawPath, pattern = "*.csv",full.names = TRUE) %>%
+    purrr::map_df(~readr::read_csv(., col_types = readr::cols(.default = "c")))
+
 
 ## make sure all subjects got in.
 length(unique(RawOpenSesame$subject_nr))
