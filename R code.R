@@ -51,6 +51,12 @@ overwriteCSV = "yes"
 
 # We require several packages. This will make sure they're installed before we proceed.
 # running this if the packages are already installed won't do anything (i.e., it won't do any harm, and it won't look for updates).
+if (!require("Hmisc")) {install.packages("Hmisc")}
+if (!require("psych")) {install.packages("psych")}
+if (!require("IAT")) {install.packages("IAT")}
+if (!require("tidyverse")) {install.packages("tidyverse")}
+
+
 # check if the users want to interactively pick the paths, and let them do so
 if (interactive_usage == "yes"){
     # make sure Rstudio is running
@@ -66,8 +72,6 @@ if (interactive_usage == "yes"){
 
 # cleanup the paths, incase the user hardcoded them, with forward slashes
 rawPath <- gsub("\\\\", "/", rawPath)
-if (!require("psych")) install.packages("psych")
-if (!require("IAT")) install.packages("IAT")
 
 # Import OpenSesame data ####
 old.dir <- getwd()
