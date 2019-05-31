@@ -1,4 +1,5 @@
 #Michael Pinus, pinusm@post.bgu.ac.il
+
 #D score calculations done by the IAT packeage (Dan Martin), based on Greenwald, Banaji & Nosek (2003).
 #Here D2 is used (can be altered below in the cleanIAT calls, see ?cleanIAT for details).
 #Internal consistency was calculated as per Bar-Anan and Nosek (2014) suggested procedure.
@@ -10,9 +11,14 @@
 #a stronger association of cat2 with att2, over att1.
 
 #Output is the data-frame iatD, which is a row-per-participat table where D scores are coupled with subject numbers.
-#Optionally, creates a CSV file named 'iatD.csv'.
+#Optionally, creates a CSV file
 
-####################### EDIT THIS ##############################################
+
+####################### THERE'S NO NEED TO EDIT THIS ###################################
+####################### ALL THE INFO THE SCRIPT NEEDS #############################################
+####################### CAN BE PROVIDED WITH DIALOG BOXES #########################################
+####################### SO YOU CAN JUST RUN IT NOW, AS-IS #########################################
+
 
 # Setting 'interactive_usage = "yes"' means you will be prompted to choose the path of the of the raw opensesame csv files,
 # and the path of the output file. Setting 'interactive_usage = "no"' means you will need to hardcode both raw and output paths, below.
@@ -20,8 +26,15 @@
 # leave this setting set to "yes". valid values are "yes"/"no".
 interactive_usage = "yes"
 
-#create iat.CSV with the results? valid values are "yes"/"no".
+# create CSV file with the results? 'outputCSV = "yes"' is for inexperienced or casual R users. If you need nothing from R,
+# other than getting the D scores, leave this setting set to "yes".
+# valid values are "yes"/"no".
 outputCSV = "yes"
+
+# create CSV file with the results? 'outputCSV = "yes"' is for inexperienced or casual R users. If you need nothing from R,
+# other than getting the D scores, leave this setting set to "yes".
+# valid values are "yes"/"no".
+outputTXT = "yes"
 
 # The next setting is IGNORED if 'interactive_usage = "yes"'.
 # insert here the path to the raw files. make sure not to use Hebrew (or any
@@ -44,8 +57,14 @@ rawPath = "C:\\Users\\micha\\Downloads\\IAT\\"
 # csvPath = "C:\\my_iat\\"
 csvPath = "C:\\Users\\micha\\Downloads\\"
 
-#if iat.CSV exists, should it be overwritten (with warning)? valid values are "yes"/"no"
+#if CSV exists, should it be overwritten (with warning)? valid values are "yes"/"no"
 overwriteCSV = "yes"
+# This will tell the script to notify you when the CSV or TXT files where overwritten.
+# 'alertOnWarning = "yes"' is for inexperienced or casual R users. If you need nothing from R,
+# other than getting the D scores, leave this setting set to "yes".
+# valid values are "yes"/"no".
+alertOnWarning = "yes"
+
 ####################### DO NOT EDIT BELOW THIS LINE ############################
 #################### UNLESS YOU KNOW WHAT YOU'RE DOING #########################
 
@@ -66,7 +85,10 @@ if (interactive_usage == "yes"){
     rstudioapi::showDialog(title = "Output CSV Path", message = "Now, pick a location and file name for the output CSV file.")
     csvPath <- rstudioapi::selectFile(caption = "Save File",
                                          label = "Save",
-                                         existing = FALSE)
+                                         existing = FALSE,
+                                         path = rawPath)
+    if (!endsWith(csvPath, ".csv")) {csvPath <- paste0(csvPath, ".csv")}
+    # append file extension, if missing
     if (!endsWith(csvPath, ".csv")) {csvPath <- paste0(csvPath, ".csv")}
 }
 
@@ -75,8 +97,6 @@ rawPath <- gsub("\\\\", "/", rawPath)
 csvPath <- gsub("\\\\", "/", csvPath)
 
 # Import OpenSesame data ####
-
-# save as tbl, following dplyr docs suggestion
 RawOpenSesame <- list.files(path = rawPath, pattern = "*.csv",full.names = TRUE) %>%
     purrr::map_df(~readr::read_csv(., col_types = readr::cols(.default = "c")))
 
@@ -168,30 +188,33 @@ rm(iatDmod0,iatDmod1,iatDmod2)
 iatIC <- psych::alpha(iatDmods[ , -1])
 
 # write output to CSV ##########################################################
-old.dir <- getwd()
 if (outputCSV == "yes") {
-    if (nchar(csvPath) > 0) { #only if csvPath is defined. will warn if not valid.
-        setwd(gsub("\\\\", "/", csvPath)) #if this err'd, WD will be restored.
-    } else { #if csv not defined, goto parent of rawPath
-        setwd(gsub("\\\\", "/", rawPath))
-        t2 <- try(setwd('..')) #try to setWD to parent folder.
-        if("try-error" %in% class(t2)) setwd(old.dir)   #if this err'd, WD will be restored.
+    if (!dir.exists(normalizePath(dirname(csvPath)))) { #check if the directory of csvPath exists. will warn if not valid.
+        #if csvPath not defined, goto parent of rawPath
+        csvPath <- file.path(dirname(rawPath),"iatD.csv")
     }
     if (overwriteCSV == "yes") {
-        if (file.exists("iatD.csv")) {
-            file.remove("iatD.csv")
-            warning("iatD.csv overwritten. Let's hope that's OK...")
+        if (file.exists(csvPath)) {
+            file.remove(csvPath)
+            warning("CSV file overwritten. Let's hope that's OK with you...")
+            if (alertOnWarning == "yes"){
+                rstudioapi::showDialog(title = "CSV file overwritten", "CSV file overwritten. Let's hope that's OK with you...")
+            }
+
         }
     }
     else {
-        if (file.exists("iatD.csv")) {
-            stop("iatD.csv exists. Remove/rename it and try again")
+        if (file.exists(csvPath)) {
+            stop("CSV file exists. Remove/rename it and try again")
+            if (alertOnWarning == "yes"){
+                rstudioapi::showDialog(title = "CSV file exists", "CSV file exists. Remove/rename it and try again")
+            }
         }
     }
-    write.csv(iatD, file = "iatD.csv", na="", row.names = FALSE)
-    print(paste0("iatD.csv saved in ", csvPath))
+    write.csv(iatD, file = csvPath, na="", row.names = FALSE)
+    print(paste0("CSV file saved in ", csvPath))
 }
-setwd(old.dir)
-rm(old.dir)
+
+# write IC output to TXT ##########################################################
 print(paste0("Raw Cronbach's Alpha for the IAT was ", round((iatIC$total$raw_alpha),2), ". see Bar-Anan & Nosek (2014) for details on how it was computed."))
 
