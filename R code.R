@@ -127,12 +127,16 @@ RawOpenSesame <- list.files(path = rawPath, pattern = "*.csv",full.names = TRUE)
 length(unique(RawOpenSesame$subject_nr))
 ## keep only needed variables ####
 keepVars <- c("blocknumber", "subject_nr", "correct_first_chance_response", "response_time_first_chance_response", "response_time_second_chance_response", "first_loc")
-cleanOpenSesame <- RawOpenSesame %>% dplyr::select(dplyr::one_of(keepVars))
+cleanOpenSesame <- RawOpenSesame %>%
+    dplyr::select(dplyr::one_of(keepVars)) %>%
+    readr::type_convert() # guess the column types. This guess should be pretty safe, as we've kept only the
+# variables we need, and we know what they are.
+
 
 ## get ready for IATD. this is a multistep process.. ####
 ### create the err variable
 errors <- cleanOpenSesame %>% dplyr::mutate(
-    err = case_when(
+    err = dplyr::case_when(
         correct_first_chance_response == 0 ~ 1,
         correct_first_chance_response == 1 ~ 0,
         TRUE ~ NA_real_
@@ -141,73 +145,112 @@ errors <- cleanOpenSesame %>% dplyr::mutate(
 
 
 ### compute _full_ trial latency
-latencies <- errors
-latencies[latencies$err == 0 , "response_time_second_chance_response"] = 0
-latencies[, "trial_latency"] = latencies$response_time_first_chance_response + latencies$response_time_second_chance_response
-rm(errors)
+latencies <- errors %>% dplyr::mutate(
+    response_time_second_chance_response = dplyr::if_else(err == 0, 0 ,response_time_second_chance_response),
+    trial_latency = response_time_first_chance_response + response_time_second_chance_response
+)
 
-### add Block number based on block content, only for abs(ZerrPercent) < 2.5
-blocks <- latencies
-blocks[!is.na(blocks$blocknumber) & blocks$blocknumber == 3 & blocks$first_loc == "right", "block_number"] = "B3"
-blocks[!is.na(blocks$blocknumber) & blocks$blocknumber == 3 & blocks$first_loc == "left", "block_number"] = "B6"
-blocks[!is.na(blocks$blocknumber) & blocks$blocknumber == 6 & blocks$first_loc == "right", "block_number"] = "B6"
-blocks[!is.na(blocks$blocknumber) & blocks$blocknumber == 6 & blocks$first_loc == "left", "block_number"] = "B3"
-blocks[!is.na(blocks$blocknumber) & blocks$blocknumber == 4 & blocks$first_loc == "right", "block_number"] = "B4"
-blocks[!is.na(blocks$blocknumber) & blocks$blocknumber == 4 & blocks$first_loc == "left", "block_number"] = "B7"
-blocks[!is.na(blocks$blocknumber) & blocks$blocknumber == 7 & blocks$first_loc == "right", "block_number"] = "B7"
-blocks[!is.na(blocks$blocknumber) & blocks$blocknumber == 7 & blocks$first_loc == "left", "block_number"] = "B4"
-rm(latencies)
+### add Block number based on block content
+
+blocks <- latencies %>%
+    dplyr::mutate(
+        block_number = dplyr::case_when(
+            blocknumber == 3 & first_loc == "right" ~  "B3",
+            blocknumber == 3 & first_loc == "left"  ~  "B6",
+            blocknumber == 6 & first_loc == "right" ~  "B6",
+            blocknumber == 6 & first_loc == "left"  ~  "B3",
+            blocknumber == 4 & first_loc == "right" ~  "B4",
+            blocknumber == 4 & first_loc == "left"  ~  "B7",
+            blocknumber == 7 & first_loc == "right" ~  "B7",
+            blocknumber == 7 & first_loc == "left"  ~  "B4",
+            TRUE ~ NA_character_
+        )
+    )
 
 ### get only trials where block_number isn't NA
-iat <- subset(blocks, !is.na(blocks$block_number))
-rm(blocks)
+iat <- blocks %>%
+    dplyr::filter(!is.na(block_number))
 
 ## prepare for IC analysis ####
 modulo <- 1:nrow(iat)
-iat$modulo <- modulo%%3   ### nth cycle, here every 3
-### make sure every subject has same number of trials with valid block_number. uncomment to run test:
-#ddply(iat,.(subject_nr), dplyr::summarise, count = length(block_number))
-### make sure numbers of trials with valid block_number make sense. note: B6,B7 are should be twice as long as B3,B4
-#ddply(iat,.(block_number), dplyr::summarise, count = length(block_number))
-# breakdown the valid trials by blocks, for each subject. this could get lengthy for big datasets.
-#ddply(iat,.(subject_nr,block_number), dplyr::summarise, count = length(block_number))
+iat <- iat %>% dplyr::mutate(
+    modulo = modulo%%3 ### nth cycle, here every 3
+    )
 
-# now same tests, by modulo, to make sure the division for the IC analysis worked as expected
-#ddply(iat,.(modulo, subject_nr), dplyr::summarise, count = length(block_number))
-#ddply(iat,.(modulo, block_number), dplyr::summarise, count = length(block_number))
-#in the next one modulo 0 has more trials than modulo 1,2. this is because the total trail number (120) is nicely divided (modulo = 0) of 3.
-#ddply(iat,.(modulo, subject_nr,block_number), dplyr::summarise, count = length(block_number))
+### make sure every subject has same number of trials with valid
+### block_number.
+iat %>%
+    dplyr::group_by(subject_nr) %>%
+    dplyr::filter(!is.na(block_number)) %>%
+    dplyr::count()
 
-iatmod0 <- iat[iat$modulo==0 , ]
-iatmod1 <- iat[iat$modulo==1 , ]
-iatmod2 <- iat[iat$modulo==2 , ]
+### make sure numbers of trials with valid block_number make sense. note:
+### B6,B7 are should be twice as long as B3,B4
+iat %>%
+    dplyr::group_by(block_number) %>%
+    dplyr::filter(!is.na(block_number)) %>%
+    dplyr::count()
+
+# breakdown the valid trials by blocks, for each subject. this could get
+# lengthy for big datasets.
+iat %>%
+    dplyr::group_by(subject_nr,block_number) %>%
+    dplyr::filter(!is.na(block_number)) %>%
+    dplyr::count()
+
+
+# now same tests, by modulo, to make sure the division for the IC analysis
+# worked as expected
+
+iat %>%
+    dplyr::group_by(modulo, subject_nr) %>%
+    dplyr::filter(!is.na(block_number)) %>%
+    dplyr::count()
+
+iat %>%
+    dplyr::group_by(modulo,block_number) %>%
+    dplyr::filter(!is.na(block_number)) %>%
+    dplyr::count()
+
+iat %>%
+    dplyr::group_by(modulo,subject_nr,block_number) %>%
+    dplyr::filter(!is.na(block_number)) %>%
+    dplyr::count()
+
+iatmod0 <- iat %>% dplyr::filter(modulo == 0)
+iatmod1 <- iat %>% dplyr::filter(modulo == 1)
+iatmod2 <- iat %>% dplyr::filter(modulo == 2)
+
 ## compute IATD scores ####
 
-iatD <- cleanIAT(iat , block_name = "block_number" , trial_blocks = c("B3", "B4", "B6", "B7") , session_id = "subject_nr" , trial_latency= "trial_latency",
+iatD <- IAT::cleanIAT(iat , block_name = "block_number" , trial_blocks = c("B3", "B4", "B6", "B7") , session_id = "subject_nr" , trial_latency= "trial_latency",
                  trial_error ="err" , v_error = 1 , v_extreme = 2 , v_std = 1 )
 
-iatD <- select(iatD,subject_nr,IAT)
+iatD <- dplyr::select(iatD,subject_nr,IAT)
 
 ### for IC measure
-iatDmod0 <- cleanIAT(iatmod0 , block_name = "block_number" , trial_blocks = c("B3", "B4", "B6", "B7") , session_id = "subject_nr" , trial_latency= "trial_latency",
-                     trial_error ="err" , v_error = 1 , v_extreme = 2 , v_std = 1 )
-iatDmod1 <- cleanIAT(iatmod1 , block_name = "block_number" , trial_blocks = c("B3", "B4", "B6", "B7") , session_id = "subject_nr" , trial_latency= "trial_latency",
-                     trial_error ="err" , v_error = 1 , v_extreme = 2 , v_std = 1 )
-iatDmod2 <- cleanIAT(iatmod2 , block_name = "block_number" , trial_blocks = c("B3", "B4", "B6", "B7") , session_id = "subject_nr" , trial_latency= "trial_latency",
-                     trial_error ="err" , v_error = 1 , v_extreme = 2 , v_std = 1 )
-rm(iatmod0,iatmod1,iatmod2)
+iatDmod0 <- IAT::cleanIAT(iatmod0 , block_name = "block_number" , trial_blocks = c("B3", "B4", "B6", "B7") , session_id = "subject_nr" , trial_latency= "trial_latency",
+                     trial_error ="err" , v_error = 1 , v_extreme = 2 , v_std = 1 ) %>% as_tibble()
+iatDmod1 <- IAT::cleanIAT(iatmod1 , block_name = "block_number" , trial_blocks = c("B3", "B4", "B6", "B7") , session_id = "subject_nr" , trial_latency= "trial_latency",
+                     trial_error ="err" , v_error = 1 , v_extreme = 2 , v_std = 1 ) %>% as_tibble()
+iatDmod2 <- IAT::cleanIAT(iatmod2 , block_name = "block_number" , trial_blocks = c("B3", "B4", "B6", "B7") , session_id = "subject_nr" , trial_latency= "trial_latency",
+                     trial_error ="err" , v_error = 1 , v_extreme = 2 , v_std = 1 ) %>% as_tibble()
 
-iatDmod0$iatmod0 <- iatDmod0$IAT
-iatDmod1$iatmod1 <- iatDmod1$IAT
-iatDmod2$iatmod2 <- iatDmod2$IAT
+iatDmod0 <- iatDmod0 %>%
+    dplyr::rename(iatmod0 = IAT) %>%
+    dplyr::select(subject_nr,iatmod0)
+iatDmod1 <- iatDmod1 %>%
+    dplyr::rename(iatmod1 = IAT) %>%
+    dplyr::select(subject_nr,iatmod1)
+iatDmod2 <- iatDmod2 %>%
+    dplyr::rename(iatmod2 = IAT) %>%
+    dplyr::select(subject_nr,iatmod2)
 
-iatDmod0 <- select(iatDmod0,subject_nr,iatmod0)
-iatDmod1 <- select(iatDmod1,subject_nr,iatmod1)
-iatDmod2 <- select(iatDmod2,subject_nr,iatmod2)
 
-iatDmods <- Merge(iatDmod0, iatDmod1, iatDmod2, id = ~ subject_nr , verbose = FALSE)
-rm(iatDmod0,iatDmod1,iatDmod2)
-iatIC <- psych::alpha(iatDmods[ , -1])
+iatDmods2 <- iatDmod0 %>% dplyr::full_join(iatDmod1, by = "subject_nr") %>%
+    dplyr::full_join(iatDmod2, by = "subject_nr")
+
+iatIC <- iatDmods %>% dplyr::select(-subject_nr) %>% psych::alpha()
 
 # write output to CSV ##########################################################
 if (outputCSV == "yes") {
