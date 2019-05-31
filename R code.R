@@ -59,6 +59,21 @@ csvPath = "C:\\Users\\micha\\Downloads\\"
 
 #if CSV exists, should it be overwritten (with warning)? valid values are "yes"/"no"
 overwriteCSV = "yes"
+
+# The next setting is IGNORED if 'interactive_usage = "yes"'.
+# insert here the path to the output TXT file for the internal consistency result. make sure to
+# use double slashes, and a complete and valid windows path (if you're on linux,
+# you probably know how to tweak to code accordingly).
+# If not defined, the script will try to use the parent folder of the rawPath folder.
+# If the parent folder is write-protected, the working directory (where this script
+# is saved) will be used.
+# takes a double-quoted string, such as:
+# txtPath = "C:\\my_iat\\"
+txtPath = "C:\\Users\\micha\\Downloads\\"
+
+#if TXT exists, should it be overwritten (with warning)? valid values are "yes"/"no"
+overwriteTXT = "yes"
+
 # This will tell the script to notify you when the CSV or TXT files where overwritten.
 # 'alertOnWarning = "yes"' is for inexperienced or casual R users. If you need nothing from R,
 # other than getting the D scores, leave this setting set to "yes".
@@ -88,13 +103,20 @@ if (interactive_usage == "yes"){
                                          existing = FALSE,
                                          path = rawPath)
     if (!endsWith(csvPath, ".csv")) {csvPath <- paste0(csvPath, ".csv")}
+    rstudioapi::showDialog(title = "Output TXT Path", message = "Last one. Pick a location and file name for the internal consistency TXT file.")
+    txtPath <- rstudioapi::selectFile(caption = "Save File",
+                                      label = "Save",
+                                      existing = FALSE,
+                                      path = rawPath)
     # append file extension, if missing
     if (!endsWith(csvPath, ".csv")) {csvPath <- paste0(csvPath, ".csv")}
+    if (!endsWith(txtPath, ".txt")) {txtPath <- paste0(txtPath, ".txt")}
 }
 
 # cleanup the paths, incase the user hardcoded them, with forward slashes
 rawPath <- gsub("\\\\", "/", rawPath)
 csvPath <- gsub("\\\\", "/", csvPath)
+txtPath <- gsub("\\\\", "/", txtPath)
 
 # Import OpenSesame data ####
 RawOpenSesame <- list.files(path = rawPath, pattern = "*.csv",full.names = TRUE) %>%
@@ -216,5 +238,34 @@ if (outputCSV == "yes") {
 }
 
 # write IC output to TXT ##########################################################
-print(paste0("Raw Cronbach's Alpha for the IAT was ", round((iatIC$total$raw_alpha),2), ". see Bar-Anan & Nosek (2014) for details on how it was computed."))
+if (outputTXT == "yes") {
+    if (!dir.exists(normalizePath(dirname(txtPath)))) { #check if the directory of txtPath exists. will warn if not valid.
+        #if csvPath not defined, goto parent of rawPath
+        txtPath <- file.path(dirname(rawPath),"iatIC.txt")
+    }
+    if (overwriteTXT == "yes") {
+        if (file.exists(txtPath)) {
+            file.remove(txtPath)
+            warning("TXT file overwritten. Let's hope that's OK with you...")
+            if (alertOnWarning == "yes"){
+                rstudioapi::showDialog(title = "TXT file overwritten", "TXT file overwritten. Let's hope that's OK with you...")
+            }
+
+        }
+    }
+    else {
+        if (file.exists(txtPath)) {
+            stop("TXT file exists. Remove/rename it and try again")
+            if (alertOnWarning == "yes"){
+                rstudioapi::showDialog(title = "TXT file exists", "TXT file exists. Remove/rename it and try again")
+            }
+        }
+    }
+    reportIC <- paste0("Raw Cronbach's Alpha for the IAT was ", round((iatIC$total$raw_alpha),2), ". See Bar-Anan & Nosek (2014) for details on how it was computed.")
+
+    cat(reportIC, file= txtPath, sep="n", append=FALSE)
+    print(paste0("TXT file saved in ", txtPath))
+}
+
+print(reportIC)
 
