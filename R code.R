@@ -247,7 +247,7 @@ iatDmod2 <- iatDmod2 %>%
     dplyr::select(subject_nr,iatmod2)
 
 
-iatDmods2 <- iatDmod0 %>% dplyr::full_join(iatDmod1, by = "subject_nr") %>%
+iatDmods <- iatDmod0 %>% dplyr::full_join(iatDmod1, by = "subject_nr") %>%
     dplyr::full_join(iatDmod2, by = "subject_nr")
 
 iatIC <- iatDmods %>% dplyr::select(-subject_nr) %>% psych::alpha()
